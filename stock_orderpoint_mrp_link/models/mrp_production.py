@@ -8,7 +8,5 @@ class MrpProduction(models.Model):
     _inherit = "mrp.production"
 
     orderpoint_id = fields.Many2one(
-        comodel_name='stock.warehouse.orderpoint',
-        index=True,
-        string="Reordering rule"
+        comodel_name="stock.warehouse.orderpoint", index=True, string="Reordering rule"
     )
