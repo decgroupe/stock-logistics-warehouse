@@ -59,6 +59,14 @@ def post_load_hook():
         for action, procurements in actions_to_run.items():
             if hasattr(self.env["stock.rule"], "_run_%s" % action):
                 try:
+                    _logger.info("Execute method _run_%s", action)
+                    for procurement, rule in procurements:
+                        _logger.info(
+                            "- Apply rule %r from route %r on %r",
+                            rule.name,
+                            rule.route_id.name,
+                            procurement.product_id.display_name,
+                        )
                     getattr(self.env["stock.rule"], "_run_%s" % action)(procurements)
                 except ProcurementException as e:
                     procurement_errors += e.procurement_exceptions
