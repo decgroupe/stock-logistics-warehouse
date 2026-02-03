@@ -136,4 +136,4 @@ class TestStockOrderpointMRPLink(SavepointCase):
         )
         result = self.orderpoint_secondary_loc.action_view_mrp_productions()
         mo_action = self.production_model.search(ast.literal_eval(result["domain"]))
-        self.assertEquals(mo_orderpoint, mo_action)
+        self.assertEqual(mo_orderpoint, mo_action)
