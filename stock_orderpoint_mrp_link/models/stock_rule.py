@@ -12,7 +12,7 @@ class StockRule(models.Model):
         product_id,
         product_qty,
         product_uom,
-        location_id,
+        location_dest_id,
         name,
         origin,
         company_id,
@@ -20,15 +20,15 @@ class StockRule(models.Model):
         bom,
     ):
         result = super()._prepare_mo_vals(
-            product_id,
-            product_qty,
-            product_uom,
-            location_id,
-            name,
-            origin,
-            company_id,
-            values,
-            bom,
+            product_id=product_id,
+            product_qty=product_qty,
+            product_uom=product_uom,
+            location_dest_id=location_dest_id,
+            name=name,
+            origin=origin,
+            company_id=company_id,
+            values=values,
+            bom=bom,
         )
         if "orderpoint_id" in values:
             result["orderpoint_id"] = values["orderpoint_id"].id

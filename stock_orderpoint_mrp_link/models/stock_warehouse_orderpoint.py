@@ -9,11 +9,19 @@ class StockWarehouseOrderpoint(models.Model):
     _inherit = "stock.warehouse.orderpoint"
 
     def action_view_mrp_productions(self):
-        action = self.env.ref("mrp.mrp_production_action")
-        result = action.read()[0]
-        result["context"] = {}
-        mrp_production_ids = self.env["mrp.production"].search(
-            [("orderpoint_id", "=", self.id)]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "mrp.mrp_production_action"
         )
-        result["domain"] = "[('id','in',%s)]" % mrp_production_ids.ids
-        return result
+        production_ids = self.env["mrp.production"].search(
+            [("orderpoint_id", "in", self.ids)]
+        )
+        action["domain"] = [("id", "in", production_ids.ids)]
+        if len(production_ids) == 1:
+            form_view = self.env.ref("mrp.mrp_production_form_view")
+            action.update(
+                {
+                    "views": [(form_view.id, "form")],
+                    "res_id": production_ids.id,
+                }
+            )
+        return action

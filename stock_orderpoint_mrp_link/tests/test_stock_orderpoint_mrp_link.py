@@ -1,11 +1,13 @@
 # Copyright 2019 Eficent Business and IT Consulting Services S.L.
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
-import ast
 
-from odoo.tests.common import SavepointCase
+from odoo import Command
+from odoo.tests.common import TransactionCase
 
 
-class TestStockOrderpointMRPLink(SavepointCase):
+class TestStockOrderpointMRPLink(TransactionCase):
+    """Test Stock Orderpoint MRP Link module."""
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -14,7 +16,7 @@ class TestStockOrderpointMRPLink(SavepointCase):
         cls.product_model = cls.env["product.product"]
         cls.orderpoint_model = cls.env["stock.warehouse.orderpoint"]
         cls.loc_model = cls.env["stock.location"]
-        cls.route_model = cls.env["stock.location.route"]
+        cls.route_model = cls.env["stock.route"]
         cls.bom_model = cls.env["mrp.bom"]
         cls.boml_model = cls.env["mrp.bom.line"]
         cls.group_obj = cls.env["procurement.group"]
@@ -36,19 +38,17 @@ class TestStockOrderpointMRPLink(SavepointCase):
                 "name": "Stock -> Test",
                 "product_selectable": True,
                 "rule_ids": [
-                    (
-                        0,
-                        0,
+                    Command.create(
                         {
                             "name": "stock to test",
                             "action": "pull",
-                            "location_id": cls.secondary_loc.id,
+                            "location_dest_id": cls.secondary_loc.id,
                             "location_src_id": cls.stock_loc.id,
                             "procure_method": "make_to_order",
                             "picking_type_id": cls.env.ref(
                                 "stock.picking_type_internal"
                             ).id,
-                            "propagate": True,
+                            "propagate_cancel": True,
                         },
                     )
                 ],
@@ -86,54 +86,73 @@ class TestStockOrderpointMRPLink(SavepointCase):
             }
         )
 
+        # Create Procurement Group (linked to orderpoints, this is necessary to
+        # avoid grouping of manufactures because of `_make_mo_get_domain`. Note that
+        # `_prepare_mo_vals` always set the procurement group to `False`, ignoring the
+        # orderpoint's group and that a new one is created from
+        # `_prepare_procurement_group_vals`)
+        group = cls.group_obj.create({"name": "Useless Group"})
+
         # Create Orderpoint:
         cls.orderpoint_stock = cls.orderpoint_model.create(
             {
+                "name": "OP_A",
                 "warehouse_id": cls.warehouse.id,
                 "location_id": cls.warehouse.lot_stock_id.id,
                 "product_id": cls.product.id,
                 "product_min_qty": 10.0,
                 "product_max_qty": 50.0,
                 "product_uom": cls.product.uom_id.id,
+                "group_id": group.id,
             }
         )
         cls.orderpoint_secondary_loc = cls.orderpoint_model.create(
             {
+                "name": "OP_B",
                 "warehouse_id": cls.warehouse.id,
                 "location_id": cls.secondary_loc.id,
                 "product_id": cls.product.id,
                 "product_min_qty": 10.0,
                 "product_max_qty": 20.0,
                 "product_uom": cls.product.uom_id.id,
+                "group_id": group.id,
             }
         )
 
         cls.group_obj.run_scheduler()
 
     def test_01_stock_orderpoint_mrp_link(self):
-        """Tests manual procurement fills orderpoint_id field.
+        """Tests manual procurement fills `orderpoint_id` field.
         Direct MO creation."""
         mo = self.production_model.search(
             [("orderpoint_id", "=", self.orderpoint_stock.id)]
         )
         self.assertTrue(mo)
         self.assertEqual(mo.orderpoint_id, self.orderpoint_stock)
-        self.assertEqual(mo.orderpoint_id, self.orderpoint_stock)
 
     def test_02_stock_orderpoint_mrp_link_indirect_routing(self):
-        """Tests manual procurement fills requested_by field.
+        """Tests manual procurement fills `orderpoint_id` field.
         Indirect MO creation (transfer -> MO)."""
         mo2 = self.production_model.search(
             [("orderpoint_id", "=", self.orderpoint_secondary_loc.id)]
         )
         self.assertTrue(mo2)
         self.assertEqual(mo2.orderpoint_id, self.orderpoint_secondary_loc)
-        self.assertEqual(mo2.orderpoint_id, self.orderpoint_secondary_loc)
 
     def test_03_stock_orderpoint_mrp_link_action_view(self):
+        # single MO
+        single_order_point = self.orderpoint_secondary_loc
         mo_orderpoint = self.production_model.search(
-            [("orderpoint_id", "=", self.orderpoint_secondary_loc.id)]
+            [("orderpoint_id", "in", single_order_point.ids)]
         )
-        result = self.orderpoint_secondary_loc.action_view_mrp_productions()
-        mo_action = self.production_model.search(ast.literal_eval(result["domain"]))
+        result = single_order_point.action_view_mrp_productions()
+        mo_action = self.production_model.browse(result["res_id"])
+        self.assertEqual(mo_orderpoint, mo_action)
+        # multiple MOs
+        multiple_order_point = self.orderpoint_stock | self.orderpoint_secondary_loc
+        mo_orderpoint = self.production_model.search(
+            [("orderpoint_id", "in", multiple_order_point.ids)]
+        )
+        result = multiple_order_point.action_view_mrp_productions()
+        mo_action = self.production_model.search(result["domain"])
         self.assertEqual(mo_orderpoint, mo_action)

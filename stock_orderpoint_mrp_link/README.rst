@@ -59,6 +59,7 @@ Contributors
 ------------
 
 - Héctor Villarreal Ortega <hector.villarreal@eficent.com>
+- Yann Papouin <ypa@decgroupe.com>
 
 Maintainers
 -----------
