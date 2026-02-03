@@ -6,36 +6,3 @@ from odoo import models
 
 class StockRule(models.Model):
     _inherit = "stock.rule"
-
-    def _prepare_mo_vals(
-        self,
-        product_id,
-        product_qty,
-        product_uom,
-        location_dest_id,
-        name,
-        origin,
-        company_id,
-        values,
-        bom,
-    ):
-        result = super()._prepare_mo_vals(
-            product_id=product_id,
-            product_qty=product_qty,
-            product_uom=product_uom,
-            location_dest_id=location_dest_id,
-            name=name,
-            origin=origin,
-            company_id=company_id,
-            values=values,
-            bom=bom,
-        )
-        if "orderpoint_id" in values:
-            result["orderpoint_id"] = values["orderpoint_id"].id
-        elif "orderpoint_ids" in values:
-            # We take the always first value as in case of chain procurements,
-            # the procurements are resolved first and then the moves are
-            # merged. Thus here we are going to have only one OP in
-            # in orderpoint_ids.
-            result["orderpoint_id"] = values["orderpoint_ids"][0].id
-        return result
